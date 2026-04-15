@@ -1,3 +1,4 @@
+// BiometricApi.kt
 package com.bit.bilikdigitalkarawang.features.pemilihan.presentation.face_recognition
 
 import okhttp3.MultipartBody
@@ -8,7 +9,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 import java.util.concurrent.TimeUnit
 
-// --- DATA MODELS ---
 data class StandardResponse<T>(val success: Boolean, val message: String, val data: T?)
 
 data class UserData(
@@ -20,6 +20,13 @@ data class UserData(
     val tempat_lahir: String?,
     val tanggal_lahir: String?,
     val alamat: String?,
+    val kode_pro: Long?,
+    val kode_kab: Long?,
+    val kode_kec: Long?,
+    val kode_kel: Long?,
+    val id_tps: Long?,
+    val tps_no: String?,
+    val bilik_no: Int?,
     val nama_pro: String?,
     val nama_kab: String?,
     val nama_kec: String?,
@@ -44,7 +51,6 @@ data class FingerprintTemplateData(
 
 data class LoginRequest(val nik: String)
 
-// --- INTERFACE API ---
 interface ApiService {
     @POST("users/login")
     suspend fun login(@Body request: LoginRequest): StandardResponse<UserData>
@@ -74,7 +80,6 @@ interface ApiService {
         @Part face_images: List<MultipartBody.Part>, @Part foto_profil: MultipartBody.Part? = null
     ): StandardResponse<UserData>
 
-    // --- ENDPOINT BARU UNTUK WAJAH SAJA ---
     @Multipart
     @POST("users/{user_id}/faces")
     suspend fun registerFaceImages(
@@ -101,14 +106,26 @@ interface ApiService {
     ): StandardResponse<Any>
 
     @GET("finger/all-fingerprints")
-    suspend fun getAllFingerprints(): StandardResponse<List<FingerprintTemplateData>>
+    suspend fun getAllFingerprints(
+        @Query("provinsi") provinsi: String? = null,
+        @Query("kabupaten") kabupaten: String? = null,
+        @Query("kecamatan") kecamatan: String? = null,
+        @Query("desa") desa: String? = null,
+        @Query("tps") tps: String? = null
+    ): StandardResponse<List<FingerprintTemplateData>>
 }
 
-// --- CLIENT SETUP ---
 object RetrofitClient {
     const val BASE_URL = "https://votenow.hitungsuara.id/biometrik/"
 
     private val okHttpClient = OkHttpClient.Builder()
+        .addInterceptor { chain ->
+            val original = chain.request()
+            val requestBuilder = original.newBuilder()
+                .header("ngrok-skip-browser-warning", "true")
+            val request = requestBuilder.build()
+            chain.proceed(request)
+        }
         .connectTimeout(60, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)

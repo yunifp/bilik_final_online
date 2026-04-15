@@ -1,3 +1,4 @@
+// BiometricViewModel.kt
 package com.bit.bilikdigitalkarawang.features.pemilihan.presentation.face_recognition
 
 import android.content.Context
@@ -44,14 +45,12 @@ class BiometricViewModel @Inject constructor(
         scanState = ScanState.Scanning
     }
 
-    // TERIMA ROTATION DEGREES DINAMIS DARI SENSOR
     fun processFaceImage(context: Context, bitmap: Bitmap, rotationDegrees: Int, expectedNik: String? = null) {
         if (scanState is ScanState.Loading || scanState is ScanState.Success) return
         scanState = ScanState.Loading
 
         viewModelScope.launch {
             try {
-                // Rotasi Dinamis (Anti Miring di Tablet)
                 val matrix = Matrix()
                 matrix.postRotate(rotationDegrees.toFloat())
                 val rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
@@ -65,7 +64,6 @@ class BiometricViewModel @Inject constructor(
                 val requestFile = file.asRequestBody("image/jpeg".toMediaTypeOrNull())
                 val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
 
-                // MEMANGGIL API RetrofitClient
                 val response = RetrofitClient.instance.recognizeFace(body)
 
                 if (response.success && response.data != null) {
@@ -73,34 +71,29 @@ class BiometricViewModel @Inject constructor(
 
                     if (expectedNik != null) {
                         if (detectedUser.nik == expectedNik) {
-                            validateNikInDpt(detectedUser) // Cek NIK ke DPT
+                            validateNikInDpt(detectedUser)
                         } else {
                             scanState = ScanState.Error("Wajah terdeteksi sebagai ${detectedUser.nama_lengkap}. Gunakan wajah yang sesuai NIK Anda!")
                         }
                     } else {
-                        validateNikInDpt(detectedUser) // Cek NIK ke DPT
+                        validateNikInDpt(detectedUser)
                     }
 
                 } else {
                     scanState = ScanState.Error(response.message)
                 }
             } catch (e: HttpException) {
-                val err = e.response()?.errorBody()?.string()
-                Log.e(TAG, "HTTP Error: $err")
                 scanState = ScanState.Error("Wajah tidak jelas atau posisi miring.")
             } catch (e: Exception) {
-                Log.e(TAG, "Exception: ${e.message}")
                 scanState = ScanState.Error("Koneksi gagal atau wajah tidak terdaftar di sistem.")
             }
         }
     }
 
-    // Fungsi tambahan untuk memvalidasi NIK hasil deteksi wajah dengan data pemilih menggunakan onEach
     private fun validateNikInDpt(detectedUser: UserData) {
         cekNikValidUseCase(detectedUser.nik).onEach { result ->
             when (result) {
                 is Resource.Loading -> {
-                    // Biarkan state tetap Loading
                 }
                 is Resource.Success -> {
                     if (result.data == true) {

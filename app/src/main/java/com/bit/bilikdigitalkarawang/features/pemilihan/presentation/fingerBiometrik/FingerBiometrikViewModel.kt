@@ -1,3 +1,4 @@
+// FingerBiometrikViewModel.kt
 package com.bit.bilikdigitalkarawang.features.pemilihan.presentation.fingerBiometrik
 
 import android.util.Base64
@@ -51,13 +52,19 @@ class FingerBiometrikViewModel @Inject constructor(
         scanState = FingerScanState.Idle
     }
 
-    fun loadFingerprintData() {
+    fun loadFingerprintData(
+        provinsi: String? = null,
+        kabupaten: String? = null,
+        kecamatan: String? = null,
+        desa: String? = null,
+        tps: String? = null
+    ) {
         if (isDataLoaded) return
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val api = RetrofitClient.instance
-                val response = api.getAllFingerprints()
+                val response = api.getAllFingerprints(provinsi, kabupaten, kecamatan, desa, tps)
                 withContext(Dispatchers.Main) {
                     if (response.success && response.data != null) {
                         serverTemplates = response.data
@@ -77,7 +84,6 @@ class FingerBiometrikViewModel @Inject constructor(
         }
     }
 
-    // 🌟 PERBAIKAN: Parameter bitmap telah dihapus, kembali menggunakan capturedTemplate saja
     fun processFingerprint(capturedTemplate: ByteArray) {
         if (scanState is FingerScanState.Verifying || scanState is FingerScanState.Success || scanState is FingerScanState.Error) return
 

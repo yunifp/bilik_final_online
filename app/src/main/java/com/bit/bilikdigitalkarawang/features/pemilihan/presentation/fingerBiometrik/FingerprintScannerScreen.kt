@@ -1,3 +1,4 @@
+// FingerprintScannerScreen.kt
 package com.bit.bilikdigitalkarawang.features.pemilihan.presentation.fingerBiometrik
 
 import android.graphics.Bitmap
@@ -65,7 +66,7 @@ fun FingerprintScannerScreen(
     isConnected: Boolean,
     capturedBitmap: Bitmap?,
     capturedTemplate: ByteArray?,
-    scanTrigger: Int, // 🌟 INI NYAWA UTAMA KITA 🌟
+    scanTrigger: Int,
     onBack: () -> Unit,
     onConnect: () -> Unit,
     onSuccessFingerprint: (String) -> Unit,
@@ -73,36 +74,27 @@ fun FingerprintScannerScreen(
 ) {
     val scanState = viewModel.scanState
 
-    // SINKRONISASI AWAL
     LaunchedEffect(Unit) {
         if (!isConnected) onConnect()
         viewModel.loadFingerprintData()
     }
 
-    // 🌟 OBAT ANTI-TAP 2 KALI & ANTI LOOPING 🌟
-    // Menyimpan angka trigger terakhir yang diproses. Berada di luar Crossfade agar ingatannya tidak amnesia saat pindah layar.
     var lastProcessedTrigger by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(scanTrigger, viewModel.isDataLoaded, isConnected, capturedTemplate) {
-        // Jangan proses jika data belum siap
         if (!isConnected || !viewModel.isDataLoaded || capturedTemplate == null) return@LaunchedEffect
 
-        // Jika angka scanTrigger dari ZKTeco LEBIH BESAR dari yang terakhir kali kita proses, itu PASTI jari baru!
         if (scanTrigger > lastProcessedTrigger) {
             if (scanState is FingerScanState.Idle) {
-                // Catat angkanya agar sistem tidak memproses hal yang sama 2 kali (Anti Looping)
                 lastProcessedTrigger = scanTrigger
 
-                // Jeda 50ms ke alat ZKTeco buat nulis byte array-nya dengan sempurna
                 delay(50)
 
-                // Gunakan copyOf() agar memori aman
                 viewModel.processFingerprint(capturedTemplate.copyOf())
             }
         }
     }
 
-    // Tampilan Transisi Layar
     Crossfade(targetState = scanState, label = "Screen Transition") { state ->
         when (state) {
             is FingerScanState.Success -> {
@@ -139,7 +131,6 @@ fun FingerprintScannerScreen(
                 )
             }
             else -> {
-                // View ini sekarang 100% murni UI saja, pemrosesannya sudah di-handle di atas
                 FingerprintScannerView(
                     isConnected = isConnected,
                     capturedBitmap = capturedBitmap,
@@ -187,7 +178,6 @@ private fun FingerprintScannerView(
                     .fillMaxSize()
                     .zIndex(1f)
             ) {
-                // Header
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -213,7 +203,6 @@ private fun FingerprintScannerView(
                     Box(modifier = Modifier.size(48.dp))
                 }
 
-                // Bagian Tengah
                 Column(
                     modifier = Modifier.align(Alignment.Center).zIndex(1f),
                     horizontalAlignment = Alignment.CenterHorizontally
