@@ -16,6 +16,9 @@ interface PemilihDao {
     @Query("SELECT * FROM pemilih WHERE nik = :nik LIMIT 1")
     suspend fun getPemilihByNik(nik: String): PemilihEntity?
 
+    @Query("SELECT * FROM pemilih WHERE nik = :identifier OR user_uuid = :identifier LIMIT 1")
+    suspend fun getPemilihByNikOrUuid(identifier: String): PemilihEntity?
+
     @Query("SELECT * FROM pemilih")
     fun getAllPemilih(): Flow<List<PemilihEntity>>
 

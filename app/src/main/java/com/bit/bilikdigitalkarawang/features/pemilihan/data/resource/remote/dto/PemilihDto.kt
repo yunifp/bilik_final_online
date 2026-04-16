@@ -46,4 +46,6 @@ data class PemilihDto(
     val idTps: String = "",
     @SerializedName("jenis_kelamin")
     val jenisKelamin: String = "",
+    @SerializedName("user_uuid")
+    val userUuid: String? = null,
 )

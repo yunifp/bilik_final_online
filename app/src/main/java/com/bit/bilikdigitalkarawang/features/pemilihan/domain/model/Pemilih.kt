@@ -21,5 +21,6 @@ data class Pemilih(
     val ketTms: String?,
     val statusDisabilitas: String?,
     val idJenisDisabilitas: String?,
-    val jenisKelamin: String
+    val jenisKelamin: String,
+    val userUuid: String?
 )

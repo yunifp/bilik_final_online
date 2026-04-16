@@ -18,6 +18,8 @@ interface PemilihanRepository {
     fun getPemilihan(): Flow<List<Pemilihan>>
     suspend fun getPemilihByNik(nik: String): Pemilih?
 
+    suspend fun getPemilihByNikOrUuid(identifier: String): Pemilih?
+
     suspend fun downloadKandidat(token: String): CommonStatus
     suspend fun downloadPemilih(token: String): CommonStatus
 

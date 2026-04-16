@@ -113,7 +113,8 @@ class FingerBiometrikViewModel @Inject constructor(
             when (result) {
                 is Resource.Loading -> { }
                 is Resource.Success -> {
-                    if (result.data == true) {
+                    // Cukup periksa apakah data pemilih berhasil dikembalikan (tidak null)
+                    if (result.data != null) {
                         scanState = FingerScanState.Success(detectedUser)
                     } else {
                         scanState = FingerScanState.Error("Sidik jari dikenali, namun NIK (${detectedUser.nik}) tidak terdaftar dalam Data Pemilih.")
@@ -125,7 +126,6 @@ class FingerBiometrikViewModel @Inject constructor(
             }
         }.launchIn(viewModelScope)
     }
-
     private suspend fun findMatchingUser(
         capturedTemplate: ByteArray,
         templates: List<FingerprintTemplateData>

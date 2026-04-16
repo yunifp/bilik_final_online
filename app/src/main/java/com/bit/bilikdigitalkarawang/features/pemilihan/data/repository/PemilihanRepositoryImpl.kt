@@ -60,6 +60,9 @@ class PemilihanRepositoryImpl @Inject constructor(
     override suspend fun getPemilihByNik(nik: String): Pemilih? =
         pemilihDao.getPemilihByNik(nik)?.toPemilih()
 
+    override suspend fun getPemilihByNikOrUuid(identifier: String): Pemilih? =
+        pemilihDao.getPemilihByNikOrUuid(identifier)?.toPemilih()
+
     override suspend fun downloadKandidat(token: String): CommonStatus {
         return try {
             val response = apiService.getKandidat(token)

@@ -26,7 +26,8 @@ fun PemilihEntity.toPemilih(): Pemilih {
         ketTms = this.ketTms,
         statusDisabilitas = this.statusDisabilitas,
         idJenisDisabilitas = this.idJenisDisabilitas,
-        jenisKelamin = this.jenisKelamin
+        jenisKelamin = this.jenisKelamin,
+        userUuid = this.userUuid
     )
 }
 
@@ -51,6 +52,7 @@ fun PemilihDto.toEntity(): PemilihEntity {
         ketTms = this.ketTms,
         statusDisabilitas = this.statusDisabilitas,
         idJenisDisabilitas = this.idJenisDisabilitas,
-        jenisKelamin = this.jenisKelamin
+        jenisKelamin = this.jenisKelamin,
+        userUuid = this.userUuid
     )
 }

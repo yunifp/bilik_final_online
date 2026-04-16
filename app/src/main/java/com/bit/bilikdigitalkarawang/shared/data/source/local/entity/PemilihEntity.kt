@@ -68,4 +68,7 @@ data class PemilihEntity(
 
     @ColumnInfo(name = "jenis_kelamin")
     val jenisKelamin: String,
+
+    @ColumnInfo(name = "user_uuid")
+    val userUuid: String?
 )

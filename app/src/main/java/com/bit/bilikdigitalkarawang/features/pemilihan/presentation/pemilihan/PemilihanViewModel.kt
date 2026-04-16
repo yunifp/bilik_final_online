@@ -89,10 +89,14 @@ class PemilihanViewModel @Inject constructor(
                 is Resource.Loading -> {
                     _state.update { it.copy(isCheckingNik = true) }
                 }
+
                 is Resource.Success -> {
-                    if (result.data == true) {
+                    val pemilihData = result.data
+                    if (pemilihData != null) {
                         _state.update {
                             it.copy(
+                                nik = pemilihData.nik, // -> TIMPA UUID DENGAN NIK ASLI
+                                informasiPemilih = pemilihData, // -> LANGSUNG ISI DATA PEMILIH (Tidak perlu fetch 2x)
                                 checkingNikStatus = true,
                                 isCheckingNik = false
                             )
@@ -100,6 +104,7 @@ class PemilihanViewModel @Inject constructor(
                         getKandidatList()
                     }
                 }
+
                 is Resource.Error -> {
                     _state.update {
                         it.copy(

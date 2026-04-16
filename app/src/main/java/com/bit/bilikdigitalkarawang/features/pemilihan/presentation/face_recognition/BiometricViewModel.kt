@@ -96,7 +96,8 @@ class BiometricViewModel @Inject constructor(
                 is Resource.Loading -> {
                 }
                 is Resource.Success -> {
-                    if (result.data == true) {
+                    // Cukup cek apakah objek pemilih berhasil ditemukan (tidak null)
+                    if (result.data != null) {
                         scanState = ScanState.Success(detectedUser)
                     } else {
                         scanState = ScanState.Error("Wajah dikenali, namun NIK (${detectedUser.nik}) tidak terdaftar dalam Data Pemilih.")
