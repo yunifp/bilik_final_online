@@ -106,11 +106,7 @@ fun HomeScreen(
             "Lihat total suara per kandidat dan jumlah pemilih secara real-time",
             R.drawable.ic_report,
             {
-                if (bolehBukaRekap) {
-                    navController.navigate(Screen.KonfirmasiPin.createRoute(Screen.Rekap.route))
-                } else {
-                    viewModel.confirmBukaRekap()
-                }
+                viewModel.confirmBukaRekap()
             },
             MenuCategory.PROSES_PEMILIHAN
         ),

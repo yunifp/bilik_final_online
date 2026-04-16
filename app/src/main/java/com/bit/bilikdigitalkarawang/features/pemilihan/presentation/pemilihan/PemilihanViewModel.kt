@@ -8,6 +8,7 @@ import com.bit.bilikdigitalkarawang.common.Constant
 import com.bit.bilikdigitalkarawang.common.PrintMode
 import com.bit.bilikdigitalkarawang.common.Resource
 import com.bit.bilikdigitalkarawang.features.pemilihan.domain.model.Kandidat
+import com.bit.bilikdigitalkarawang.features.pemilihan.domain.usecase.AppendAuditTrailUseCase
 import com.bit.bilikdigitalkarawang.features.pemilihan.domain.usecase.CekNikValidUseCase
 import com.bit.bilikdigitalkarawang.features.pemilihan.domain.usecase.ExportPemilihanToJsonUseCase
 import com.bit.bilikdigitalkarawang.features.pemilihan.domain.usecase.GetDetailPemilihUseCase
@@ -43,6 +44,7 @@ class PemilihanViewModel @Inject constructor(
     private val getDetailPemilihUseCase: GetDetailPemilihUseCase,
     private val getUserInfoUseCase: GetUserInfoUseCase,
     private val exportPemilihanToJsonUseCase: ExportPemilihanToJsonUseCase,
+    private val appendAuditTrailUseCase: AppendAuditTrailUseCase,
     private val bluetoothConnectionManager: BluetoothConnectionManager,
     private val dataStoreDiv: DataStoreDiv,
     private val usbPrinterManager: UsbPrinterManager
@@ -52,7 +54,7 @@ class PemilihanViewModel @Inject constructor(
     val state: StateFlow<PemilihanState> = _state
 
     init {
-        getVotingMethod() // <--- INIT UNTUK MENDAPATKAN METHOD SAAT VIEWMODEL DIBUAT
+        getVotingMethod()
     }
 
     private fun getVotingMethod() {
@@ -70,9 +72,7 @@ class PemilihanViewModel @Inject constructor(
                         userInfo = result.data,
                     )
                 }
-
                 is Resource.Error -> {}
-
                 is Resource.Loading -> {}
             }
         }.launchIn(viewModelScope)
@@ -89,7 +89,6 @@ class PemilihanViewModel @Inject constructor(
                 is Resource.Loading -> {
                     _state.update { it.copy(isCheckingNik = true) }
                 }
-
                 is Resource.Success -> {
                     if (result.data == true) {
                         _state.update {
@@ -101,7 +100,6 @@ class PemilihanViewModel @Inject constructor(
                         getKandidatList()
                     }
                 }
-
                 is Resource.Error -> {
                     _state.update {
                         it.copy(
@@ -143,46 +141,22 @@ class PemilihanViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-//    fun toggleKandidatSelection(kandidat: Kandidat) {
-//        _state.update { currentState ->
-//            val currentSelection = currentState.kandidatTerpilih.toMutableList()
-//
-//            // Jika kandidat sudah dipilih, hapus; kalau belum, tambah
-//            if (currentSelection.any { it.noUrut == kandidat.noUrut }) {
-//                currentSelection.removeAll { it.noUrut == kandidat.noUrut }
-//            } else {
-//                currentSelection.add(kandidat)
-//            }
-//
-//            currentState.copy(
-//                kandidatTerpilih = currentSelection
-//            )
-//        }
-//    }
-
-    // NO GOLPUT
     fun toggleKandidatSelection(kandidat: Kandidat) {
         _state.update { currentState ->
-            // Cek apakah kandidat yang di-klik saat ini sudah dalam keadaan terpilih
             val isAlreadySelected = currentState.kandidatTerpilih.any { it.noUrut == kandidat.noUrut }
-
-            // Jika sudah terpilih -> kosongkan list (batal pilih)
-            // Jika belum terpilih -> jadikan kandidat ini sebagai SATU-SATUNYA di dalam list
             currentState.copy(
                 kandidatTerpilih = if (isAlreadySelected) emptyList() else listOf(kandidat)
             )
         }
     }
 
-    private var isVoteProcessing = false // Flag untuk prevent multiple clicks
+    private var isVoteProcessing = false
 
     fun vote() {
-        // 🔒 PREVENT MULTIPLE CLICKS
         if (isVoteProcessing) {
             Log.d(Constant.LOG_TAG, "Vote sedang diproses, abaikan klik")
             return
         }
-
         isVoteProcessing = true
 
         viewModelScope.launch {
@@ -195,7 +169,6 @@ class PemilihanViewModel @Inject constructor(
                     )
                 }
 
-                // 1️⃣ CEK DAN KONEKSI PRINTER (dengan retry)
                 val printerCheck = connectPrinterWithRetry(maxRetries = 1)
                 if (printerCheck.isFailure) {
                     _state.update {
@@ -208,7 +181,6 @@ class PemilihanViewModel @Inject constructor(
                     return@launch
                 }
 
-                // 2️⃣ INSERT PEMILIHAN
                 val selectedCandidates = _state.value.kandidatTerpilih
                 val noUrutList = selectedCandidates.map { it.noUrut }
                 val namaKandidatList = selectedCandidates.map { it.namaCalon }
@@ -221,7 +193,6 @@ class PemilihanViewModel @Inject constructor(
                     )
                 }
 
-                // Gunakan suspending function langsung tanpa collect jika memungkinkan
                 val insertResult = insertPemilihanSuspend(nik, noUrutList, namaKandidatList)
 
                 if (insertResult.isFailure) {
@@ -241,7 +212,31 @@ class PemilihanViewModel @Inject constructor(
                     )
                 }
 
-                // 3️⃣ AUTO EXPORT di background (fire and forget)
+                val idStatus = when {
+                    _state.value.kandidatTerpilih.isEmpty() -> 3
+                    _state.value.kandidatTerpilih.size > 1 -> 2
+                    else -> 1
+                }
+
+                val deviceId = _state.value.userInfo?.deviceId ?: "UNKNOWN"
+                val tpsNo = _state.value.userInfo?.tpsNo ?: "UNKNOWN"
+                val bilikNo = _state.value.userInfo?.bilikNo ?: "UNKNOWN"
+                val votingMethod = _state.value.votingMethod
+
+                viewModelScope.launch {
+                    Log.d("AuditTrail", "Memanggil AppendAuditTrailUseCase...")
+                    appendAuditTrailUseCase(
+                        nik = nik,
+                        noUrutList = noUrutList,
+                        namaKandidatList = namaKandidatList,
+                        idStatus = idStatus,
+                        deviceId = deviceId,
+                        tpsNo = tpsNo,
+                        bilikNo = bilikNo,
+                        votingMethod = votingMethod
+                    )
+                }
+
                 viewModelScope.launch {
                     try {
                         exportPemilihanToJsonUseCase().collect { exportResult ->
@@ -260,8 +255,7 @@ class PemilihanViewModel @Inject constructor(
                     }
                 }
 
-                // 4️⃣ CETAK dengan delay kecil untuk stabilitas
-                delay(300) // Beri jeda sebelum print
+                delay(300)
                 printWithRetry()
 
             } catch (e: Exception) {
@@ -273,18 +267,16 @@ class PemilihanViewModel @Inject constructor(
                     )
                 }
             } finally {
-                isVoteProcessing = false // ✅ Unlock setelah selesai
+                isVoteProcessing = false
             }
         }
     }
 
-    // Helper function untuk koneksi printer dengan retry
     private suspend fun connectPrinterWithRetry(maxRetries: Int = 2): Result<Unit> {
         val mekanisme = dataStoreDiv.getData("mekanisme_print").first()
         Log.d(Constant.LOG_TAG, "Mekanisme print: $mekanisme")
 
         if (mekanisme == "cbl") {
-            // USB tidak perlu retry seperti Bluetooth
             val result = usbPrinterManager.connectIfNeeded()
             if (result.isFailure) {
                 Log.d(Constant.LOG_TAG, "USB gagal: ${result.exceptionOrNull()?.message}")
@@ -292,7 +284,6 @@ class PemilihanViewModel @Inject constructor(
             return result
         }
 
-        // Bluetooth dengan retry (existing logic)
         repeat(maxRetries) { attempt ->
             Log.d(Constant.LOG_TAG, "Mencoba koneksi Bluetooth (attempt ${attempt + 1})")
 
@@ -316,7 +307,6 @@ class PemilihanViewModel @Inject constructor(
         return Result.failure(Exception("Gagal terhubung ke printer"))
     }
 
-    // Helper function untuk insert dengan suspending
     private suspend fun insertPemilihanSuspend(
         nik: String,
         noUrutList: List<String>,
@@ -337,15 +327,12 @@ class PemilihanViewModel @Inject constructor(
                             )
                         }
                     }
-                    is Resource.Loading -> {
-                        // Ignore loading state
-                    }
+                    is Resource.Loading -> {}
                 }
             }
             .launchIn(viewModelScope)
     }
 
-    // Print dengan retry mechanism
     private suspend fun printWithRetry(maxRetries: Int = 2) {
         val idStatus = when {
             _state.value.kandidatTerpilih.isEmpty() -> 3
@@ -366,7 +353,6 @@ class PemilihanViewModel @Inject constructor(
         for (attempt in 0 until maxRetries) {
             Log.d(Constant.LOG_TAG, "Mencoba print (attempt ${attempt + 1})")
 
-            // Pastikan koneksi masih OK sebelum print
             if (attempt > 0) {
                 bluetoothConnectionManager.close()
                 delay(300)
@@ -390,7 +376,7 @@ class PemilihanViewModel @Inject constructor(
             val result = printHasilVotingUseCase(PrintMode.NORMAL, idStatus, noUrut, namaKandidat)
 
             if (result.isSuccess) {
-                Log.d(Constant.LOG_TAG, "Print berhasil ✅")
+                Log.d(Constant.LOG_TAG, "Print berhasil")
                 _state.update {
                     it.copy(
                         printStatus = CommonStatus.Success,
@@ -402,7 +388,6 @@ class PemilihanViewModel @Inject constructor(
                 Log.e(Constant.LOG_TAG, "Print gagal (attempt ${attempt + 1}): ${result.exceptionOrNull()?.message}")
 
                 if (attempt == maxRetries - 1) {
-                    // Retry terakhir gagal
                     _state.update {
                         it.copy(
                             printStatus = CommonStatus.Error,
@@ -410,12 +395,11 @@ class PemilihanViewModel @Inject constructor(
                         )
                     }
                 } else {
-                    delay(500) // Delay sebelum retry
+                    delay(500)
                 }
             }
         }
     }
-
 
     fun showConfirm(value: Boolean) {
         _state.update { it.copy(showConfirmation = value) }
