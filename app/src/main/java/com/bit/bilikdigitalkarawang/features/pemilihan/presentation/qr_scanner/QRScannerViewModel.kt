@@ -67,7 +67,7 @@ class QRScannerViewModel @Inject constructor(
         val trimmedContent = qrContent.trim()
 
         if (isValidQrContent(trimmedContent)) {
-            Log.d(Constant.LOG_TAG, "Valid Data detected, navigating...")
+            Log.d(Constant.LOG_TAG, "Valid UUID Data detected, navigating...")
             _state.value = _state.value.copy(
                 scannedNik = trimmedContent,
                 isScanning = false,
@@ -76,8 +76,9 @@ class QRScannerViewModel @Inject constructor(
         } else {
             Log.d(Constant.LOG_TAG, "Invalid Format: '$trimmedContent'")
             viewModelScope.launch {
+                // 1. UPDATE PESAN ERROR DISINI
                 _state.value = _state.value.copy(
-                    errorMessage = "QR Code tidak valid (Harus NIK 16 digit atau UUID)",
+                    errorMessage = "QR Code tidak valid (Harus berupa UUID yang sah)",
                     isScanning = false
                 )
                 delay(2000)
@@ -87,12 +88,7 @@ class QRScannerViewModel @Inject constructor(
     }
 
     private fun isValidQrContent(content: String): Boolean {
-        // Cek apakah 16 digit angka (NIK)
-        val isNik = content.matches(Regex("^\\d{16}$"))
-        // Cek apakah UUID (Standard 8-4-4-4-12 hex dengan atau tanpa dash)
-        val isUuid = content.matches(Regex("^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$"))
-
-        return isNik || isUuid
+        return content.matches(Regex("^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$"))
     }
 
     fun resetScanning() {
